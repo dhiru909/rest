@@ -4,10 +4,27 @@ import { createBook } from "./bookController";
 import multer from "multer";
 
 const bookRouter = express.Router();
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.resolve(__dirname, "../../public/data/uploads"));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.originalname.replace( /\.[^/.]+$/, "") +
+        "-" +
+        uniqueSuffix +
+        "." +
+        file.mimetype.split("/")[1]
+    );
+  },
+  
+});
 const upload = multer({
-  dest: path.resolve(__dirname, "../../public/data/uploads"),
+  storage: storage,
   limits: {
-    fileSize: 3e7, // 30mb
+    fileSize: 30*1024*1024, //10mb
   },
 });
 
