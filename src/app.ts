@@ -11,7 +11,7 @@ app.get("/", (req, res, next) => {
   res.json({ message: "welcome" });
 });
 
-app.use("/api/users",userRouter);
+app.use("/api/users", userRouter);
 
 //global error handler at last of all routes
 app.use(globalErrorHandler);
