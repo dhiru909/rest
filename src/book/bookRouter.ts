@@ -1,6 +1,6 @@
 import express from "express";
 import path from "node:path";
-import { createBook } from "./bookController";
+import { createBook, updateBook } from "./bookController";
 import multer from "multer";
 import authenticate from "../middlewares/authenticate";
 
@@ -13,19 +13,18 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
-      file.originalname.replace( /\.[^/.]+$/, "") +
+      file.originalname.replace(/\.[^/.]+$/, "") +
         "-" +
         uniqueSuffix +
         "." +
-        file.mimetype.split("/")[1]
+        file.mimetype.split("/")[-1]
     );
   },
-  
 });
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 30*1024*1024, //10mb
+    fileSize: 30 * 1024 * 1024, //10mb
   },
 });
 
@@ -39,4 +38,13 @@ bookRouter.post(
   createBook
 );
 
+bookRouter.patch(
+  "/:bookId",
+  authenticate,
+  upload.fields([
+    { name: "coverImage", maxCount: 1 },
+    { name: "file", maxCount: 1 },
+  ]),
+  updateBook
+);
 export default bookRouter;
