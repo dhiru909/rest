@@ -5,6 +5,7 @@ import createHttpError from "http-errors";
 import fs from "node:fs";
 import bookModel from "./bookModel";
 import { AuthRequest } from "../middlewares/authenticate";
+import { stringify } from "node:querystring";
 
 const createBook = async (req: Request, res: Response, next: NextFunction) => {
   //   console.log("files", req.files);
@@ -163,13 +164,14 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // p = page
     // l = limit
-    let page =  req.query.p ? parseInt(req.query.p as string) : 1;
+    let page = req.query.p ? parseInt(req.query.p as string) : 1;
     let limit = req.query.l ? parseInt(req.query.l as string) : 20;
     // @ts-ignore
     const booksCount = await bookModel.countDocuments();
     const pagesCount = Math.ceil(booksCount / limit);
     if (page < 1) {
       page = 1;
+      // @
     } else if (page > pagesCount) {
       page = pagesCount;
     }
@@ -180,11 +182,93 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
       .limit(limit)
       .sort([["createdAt", "desc"]])
       .exec();
-    res.set("X-Pagination", JSON.stringify({ totalPages: pagesCount, currentPage: page }));
+    res.set(
+      "X-Pagination",
+      JSON.stringify({ totalPages: pagesCount, currentPage: page })
+    );
     res.status(200).send(books);
-  } catch (err) {return next(
-    createHttpError(500, "Error while getting books"));
+  } catch (err) {
+    return next(createHttpError(500, "Error while getting books"));
   }
 };
 
-export { createBook, updateBook, listBooks };
+const getSingleBook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { bookId } = req.params;
+  try {
+    const book = await bookModel.findById(bookId).populate("user");
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+    // console.log(book.author.toString());
+    res.status(200).send(book);
+  } catch (error) {
+    return next(createHttpError(500, "Error while getting books"));
+  }
+};
+
+const deleteBook = async (req: Request, res: Response, next: NextFunction) => {
+  const { bookId } = req.params;
+  try {
+    const book = await bookModel.findOne({ _id: bookId });
+
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+
+    //check access
+    if ((req as AuthRequest).userId !== book.author.toString()) {
+      return next(createHttpError(403, "you can not delete this book"));
+    }
+    //delete cover image from cloudinary
+    const coverFileSplits = book.coverImage.split("/");
+    // console.log(coverFileSplits.at(-1));
+    const fileSplit = coverFileSplits.at(-1)?.split(".").at(-2);
+    // console.log(fileSplit);
+    const public_id = coverFileSplits.at(-2) + "/" + fileSplit;
+    // console.log(public_id);
+    await cloudinary.uploader.destroy(public_id, function (error, _result) {
+      if (error) {
+        console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+      } else {
+        console.log(
+          "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+          _result
+        );
+      }
+    });
+
+    // delete pdf file from cloudinary
+    const pdfFileSplits = book.file.split("/");
+    console.log(pdfFileSplits);
+    const pdfFile = pdfFileSplits.at(-1);
+    console.log(pdfFile);
+    const public_id_pdf = pdfFileSplits.at(-2) + "/" + pdfFile;
+    console.log(public_id_pdf);
+    await cloudinary.uploader.destroy(
+      public_id_pdf,
+      {
+        resource_type: "raw",
+      },
+      function (error, _result) {
+        if (error) {
+          console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+        } else {
+          console.log(
+            "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+            _result
+          );
+        }
+      }
+    );
+    const result = await bookModel.deleteOne({ _id: bookId }).exec();
+    res.sendStatus(204);
+  } catch (error) {
+    return next(createHttpError(500, "Error while deleting books"));
+  }
+};
+
+export { createBook, updateBook, listBooks, getSingleBook, deleteBook };
