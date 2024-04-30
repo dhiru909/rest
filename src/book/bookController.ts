@@ -148,16 +148,43 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
         genre,
         coverImage: coverImageUrl || book.coverImage,
         file: bookUrl || book.file,
-      },{
-        new:true
+      },
+      {
+        new: true,
       }
     );
     res.json(updatedBook);
   } catch (error) {
     return next(createHttpError(500, "Failed to update book"));
   }
-
- 
 };
 
-export { createBook, updateBook };
+const listBooks = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // p = page
+    // l = limit
+    let page =  req.query.p ? parseInt(req.query.p as string) : 1;
+    let limit = req.query.l ? parseInt(req.query.l as string) : 20;
+    // @ts-ignore
+    const booksCount = await bookModel.countDocuments();
+    const pagesCount = Math.ceil(booksCount / limit);
+    if (page < 1) {
+      page = 1;
+    } else if (page > pagesCount) {
+      page = pagesCount;
+    }
+    const skip = (page - 1) * limit;
+    const books = await bookModel
+      .find()
+      .skip(skip)
+      .limit(limit)
+      .sort([["createdAt", "desc"]])
+      .exec();
+    res.set("X-Pagination", JSON.stringify({ totalPages: pagesCount, currentPage: page }));
+    res.status(200).send(books);
+  } catch (err) {return next(
+    createHttpError(500, "Error while getting books"));
+  }
+};
+
+export { createBook, updateBook, listBooks };
