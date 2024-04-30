@@ -107,6 +107,23 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
           format: coverImageMimeType,
         }
       );
+       // delete previous image
+       const coverFileSplits = book.coverImage.split("/");
+       // console.log(coverFileSplits.at(-1));
+       const fileSplit = coverFileSplits.at(-1)?.split(".").at(-2);
+       // console.log(fileSplit);
+       const public_id = coverFileSplits.at(-2) + "/" + fileSplit;
+       // console.log(public_id);
+       await cloudinary.uploader.destroy(public_id, function (error, _result) {
+         if (error) {
+           console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+         } else {
+           console.log(
+             "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+             _result
+           );
+         }
+       });
       try {
         await fs.promises.unlink(coverFilePath);
       } catch (err) {}
@@ -129,7 +146,32 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
         folder: "book-pdfs",
         format: "pdf",
       });
+
+      // delete previous pdf file from cloudinary
+    const pdfFileSplits = book.file.split("/");
+    // console.log(pdfFileSplits);
+    const pdfFile = pdfFileSplits.at(-1);
+    // console.log(pdfFile);
+    const public_id_pdf = pdfFileSplits.at(-2) + "/" + pdfFile;
+    // console.log(public_id_pdf);
+    await cloudinary.uploader.destroy(
+      public_id_pdf,
+      {
+        resource_type: "raw",
+      },
+      function (error, _result) {
+        if (error) {
+          console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+        } else {
+          console.log(
+            "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+            _result
+          );
+        }
+      }
+    );
       bookUrl = bookUploadResult.secure_url;
+
       try {
         await fs.promises.unlink(bookFilePath);
       } catch (err) {}
@@ -154,6 +196,7 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
         new: true,
       }
     );
+   
     res.json(updatedBook);
   } catch (error) {
     return next(createHttpError(500, "Failed to update book"));
