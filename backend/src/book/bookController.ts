@@ -62,7 +62,7 @@ const createBook = async (req: Request, res: Response, next: NextFunction) => {
       await fs.promises.unlink(bookFilePath);
       //   throw new  Error("Files not deleted successfully");
     } catch (err) {
-      res.status(291).json({ id: newBook._id });
+      res.status(201).json({ id: newBook._id });
       return;
     }
 
@@ -107,23 +107,23 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
           format: coverImageMimeType,
         }
       );
-       // delete previous image
-       const coverFileSplits = book.coverImage.split("/");
-       // console.log(coverFileSplits.at(-1));
-       const fileSplit = coverFileSplits.at(-1)?.split(".").at(-2);
-       // console.log(fileSplit);
-       const public_id = coverFileSplits.at(-2) + "/" + fileSplit;
-       // console.log(public_id);
-       await cloudinary.uploader.destroy(public_id, function (error, _result) {
-         if (error) {
-           console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
-         } else {
-           console.log(
-             "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
-             _result
-           );
-         }
-       });
+      // delete previous image
+      const coverFileSplits = book.coverImage.split("/");
+      // console.log(coverFileSplits.at(-1));
+      const fileSplit = coverFileSplits.at(-1)?.split(".").at(-2);
+      // console.log(fileSplit);
+      const public_id = coverFileSplits.at(-2) + "/" + fileSplit;
+      // console.log(public_id);
+      await cloudinary.uploader.destroy(public_id, function (error, _result) {
+        if (error) {
+          console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+        } else {
+          console.log(
+            "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+            _result
+          );
+        }
+      });
       try {
         await fs.promises.unlink(coverFilePath);
       } catch (err) {}
@@ -148,28 +148,28 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
       });
 
       // delete previous pdf file from cloudinary
-    const pdfFileSplits = book.file.split("/");
-    // console.log(pdfFileSplits);
-    const pdfFile = pdfFileSplits.at(-1);
-    // console.log(pdfFile);
-    const public_id_pdf = pdfFileSplits.at(-2) + "/" + pdfFile;
-    // console.log(public_id_pdf);
-    await cloudinary.uploader.destroy(
-      public_id_pdf,
-      {
-        resource_type: "raw",
-      },
-      function (error, _result) {
-        if (error) {
-          console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
-        } else {
-          console.log(
-            "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
-            _result
-          );
+      const pdfFileSplits = book.file.split("/");
+      // console.log(pdfFileSplits);
+      const pdfFile = pdfFileSplits.at(-1);
+      // console.log(pdfFile);
+      const public_id_pdf = pdfFileSplits.at(-2) + "/" + pdfFile;
+      // console.log(public_id_pdf);
+      await cloudinary.uploader.destroy(
+        public_id_pdf,
+        {
+          resource_type: "raw",
+        },
+        function (error, _result) {
+          if (error) {
+            console.log("ERROR IN DELETING IMAGE FROM CLOUDINARY", error);
+          } else {
+            console.log(
+              "IMAGE HAS BEEN DELETED FROM CLOUDINARY SUCCESSFULLY ",
+              _result
+            );
+          }
         }
-      }
-    );
+      );
       bookUrl = bookUploadResult.secure_url;
 
       try {
@@ -196,7 +196,7 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
         new: true,
       }
     );
-   
+
     res.json(updatedBook);
   } catch (error) {
     return next(createHttpError(500, "Failed to update book"));
@@ -207,17 +207,22 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // p = page
     // l = limit
-    let page = req.query.p ? parseInt(req.query.p as string) : 1;
-    let limit = req.query.l ? parseInt(req.query.l as string) : 20;
-    // @ts-ignore
+    let page = parseInt(req.query.p as string) || 1;
+    let limit = parseInt(req.query.l as string) || 20;
+    // console.log("page", page);
     const booksCount = await bookModel.countDocuments();
     const pagesCount = Math.ceil(booksCount / limit);
+    // console.log("page Count",booksCount);
+    
     if (page < 1) {
       page = 1;
-      // @
-    } else if (page > pagesCount) {
-      page = pagesCount;
+    } else {
+      page = Math.min(page, pagesCount);
+      if(page==0){
+        page = 1;
+      }
     }
+    // console.log("page", page);
     const skip = (page - 1) * limit;
     const books = await bookModel
       .find()
@@ -231,6 +236,7 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
     );
     res.status(200).send(books);
   } catch (err) {
+    console.log(err);
     return next(createHttpError(500, "Error while getting books"));
   }
 };
