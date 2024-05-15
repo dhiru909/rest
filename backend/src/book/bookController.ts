@@ -213,12 +213,12 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
     const booksCount = await bookModel.countDocuments();
     const pagesCount = Math.ceil(booksCount / limit);
     // console.log("page Count",booksCount);
-    
+
     if (page < 1) {
       page = 1;
     } else {
       page = Math.min(page, pagesCount);
-      if(page==0){
+      if (page == 0) {
         page = 1;
       }
     }
@@ -226,6 +226,7 @@ const listBooks = async (req: Request, res: Response, next: NextFunction) => {
     const skip = (page - 1) * limit;
     const books = await bookModel
       .find()
+      .populate("author", "name")
       .skip(skip)
       .limit(limit)
       .sort([["createdAt", "desc"]])
@@ -248,7 +249,7 @@ const getSingleBook = async (
 ) => {
   const { bookId } = req.params;
   try {
-    const book = await bookModel.findById(bookId).populate("user");
+    const book = await bookModel.findById(bookId).populate("author", "name");
     if (!book) {
       return next(createHttpError(404, "Book not found"));
     }
